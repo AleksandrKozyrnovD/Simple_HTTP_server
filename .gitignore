@@ -4,5 +4,6 @@
 *.bin
 *.log
 *.md
+server/bin/
 !static/*
 !README.md
