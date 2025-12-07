@@ -29,7 +29,7 @@ int server_create(struct logger *slog,
     int port,
     struct server_ops *ops,
     void *private_data,
-    struct server *server_out);
+    struct server *server_var);
 
 
 #endif

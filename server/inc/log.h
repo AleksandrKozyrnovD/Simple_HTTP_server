@@ -1,13 +1,40 @@
 #ifndef __LOG_H__
 #define __LOG_H__
 
+#include <stdarg.h>
+#include "rwlock.h"
 
 struct logger;
 
+enum log_level
+{
+    DEBUG = 0,
+    INFO,
+    WARN,
+    ERROR
+};
 
-struct logger *logger_new(void *private_data);
-void logger_free(struct logger *log);
-void logger_log(struct logger *log, const char *fmt, ...);
+struct logger_ops
+{
+    void (*log)(struct logger *log, const char *fmt, va_list args);
+    void (*log_level)(struct logger *log, enum log_level level, const char *fmt, va_list args);
+    void (*private_free)(void *private_data);
+};
 
+struct logger
+{
+    struct logger_ops *lops;
+    rwlock_t lock;
+    void *private_data;
+};
+
+
+int log_create(struct logger_ops *lops, void *private_data, struct logger *log);
+void log_free(struct logger *log);
+
+void log_debug(struct logger *log, const char *fmt, ...);
+void log_info(struct logger *log, const char *fmt, ...);
+void log_warn(struct logger *log, const char *fmt, ...);
+void log_error(struct logger *log, const char *fmt, ...);
 
 #endif
