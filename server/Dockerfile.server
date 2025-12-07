@@ -1,0 +1,44 @@
+# Этап сборки
+FROM alpine:latest AS builder
+
+# Устанавливаем необходимые инструменты для сборки
+RUN apk add --no-cache \
+    gcc \
+    make \
+    musl-dev
+
+# Создаем рабочую директорию
+WORKDIR /app
+
+# Копируем исходный код
+COPY inc/ inc/
+COPY src/ src/
+COPY Makefile .
+
+# Выполняем сборку
+RUN make
+
+# Финальный этап
+FROM alpine:latest
+
+# Устанавливаем необходимые библиотеки для запуска
+# Если сервер статически собран, этап можно опустить
+# RUN apk add --no-cache libc6-compat
+
+# Создаем пользователя для безопасности
+# RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Копируем бинарный файл из этапа сборки
+COPY --from=builder /app/bin/server /usr/local/bin/server
+
+# Переключаемся на непривилегированного пользователя
+# USER appuser
+
+# Устанавливаем рабочую директорию
+# WORKDIR /home/appuser
+
+# Открываем порт (замените на нужный порт вашего сервера)
+EXPOSE 8080
+
+# Запускаем сервер
+CMD ["server"]

@@ -1,0 +1,13 @@
+services:
+  app-server:
+    build:
+      context: ./server/
+      dockerfile: Dockerfile.server
+    ports:
+      - 3000:80
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
