@@ -31,5 +31,4 @@ int server_create(struct logger *slog,
     void *private_data,
     struct server *server_var);
 
-
 #endif
