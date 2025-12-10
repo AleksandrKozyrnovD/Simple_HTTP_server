@@ -31,7 +31,8 @@ char* MIME_TYPE[MIME_TYPES_COUNT] = {
     "image/png",  "image/jpeg", "image/jpeg", "application/x-shockwave-flash",
     "image/gif"};
 
-int parse_req(http_request_t* req, char* buff) {
+int parse_req(http_request_t* req, char* buff)
+{
     // Находим разделительы между методом и URL
     char* method_end = strstr(buff, " ");
     char* url_start = method_end + 1;
@@ -102,7 +103,61 @@ char* get_content_type(char* path)
     return MIME_TYPE[i];
 }
 
-int send_headers(char* path, int clientfd) {
+int send_headers_download(char* path, int clientfd)
+{
+    char *status = http_status_responses[STATUS_SUCCESS], connection[] = "Connection: close";
+    char *len = calloc(HEADER_MAX_LEN, sizeof(char)), *type = calloc(HEADER_MAX_LEN, sizeof(char));
+    char* res_str = "/0";
+    if (len == NULL || type == NULL)
+    {
+        LOG_ERROR("failed to alloc headers buffs\n", NULL);
+        return -1;
+    }
+
+    struct stat file_stat;
+    if (stat(path, &file_stat) < 0)
+    {
+        LOG_ERROR("stat error: %s\n", strerror(errno));
+        return -1;
+    }
+    sprintf(len, "Content-Length: %ld", file_stat.st_size);
+    char* mime_type = get_content_type(path);
+    char disposition[HEADER_MAX_LEN];
+    const char* filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+    sprintf(disposition, "Content-Disposition: attachment; filename=\"%s\"", filename);
+    int rc = 0;
+    if (mime_type == NULL)
+    {
+        sprintf(type, "Content-Type: application/octet-stream");
+    }
+    else
+    {
+        sprintf(type, "Content-Type: %s", mime_type);
+    }
+    rc = asprintf(
+        &res_str,
+        "%s\r\n%s\r\n%s\r\n%s\r\n%s\r\n\r\n",
+        status, connection, len, type, disposition
+    );
+    if (rc < 0)
+    {
+        LOG_ERROR("formation of headers of http response failed\n", NULL);
+        return -1;
+    }
+    int byte_write = write_response(clientfd, res_str, rc);
+    free(res_str);
+    if (byte_write < 0)
+    {
+        LOG_ERROR("write_response: %s\n", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+
+int send_headers(char* path, int clientfd)
+{
     char *status = http_status_responses[STATUS_SUCCESS], connection[] = "Connection: close";
     char *len = calloc(HEADER_MAX_LEN, sizeof(char)), *type = calloc(HEADER_MAX_LEN, sizeof(char));
     char* res_str = "/0";
@@ -157,7 +212,8 @@ void send_status(int clientfd, int status)
     write_response(clientfd, response, strlen(response));
 }
 
-void send_file(char* path, int clientfd) {
+void send_file(char* path, int clientfd)
+{
     int fd = open(path, 0);
     if (fd < 0)
     {
@@ -228,7 +284,8 @@ void send_file(char* path, int clientfd) {
     close(fd);
 }
 
-void process_get_request(char* path, int clientfd) {
+void process_get_request(char* path, int clientfd)
+{
     if (send_headers(path, clientfd) < 0)
     {
         return;
@@ -243,20 +300,39 @@ void process_head_request(char* path, int clientfd)
 
 void send_response(char* path, int clientfd, http_method_t method)
 {
+    char* ext = get_type(path);
+    int force_download = 1;
+    if (ext)
+    {
+        if (strcmp(ext, "html") == 0 || strcmp(ext, "css") == 0)
+        {
+            force_download = 0;
+        }
+    }
     switch (method)
     {
         case GET:
-            process_get_request(path, clientfd);
+            if (force_download)
+                send_headers_download(path, clientfd);
+            else
+                send_headers(path, clientfd);
+            send_file(path, clientfd);
             break;
+
         case HEAD:
-            process_head_request(path, clientfd);
+            if (force_download)
+                send_headers_download(path, clientfd);
+            else
+                send_headers(path, clientfd);
             break;
+
         default:
             LOG_ERROR("unsupported http method\n", NULL);
             send_status(clientfd, STATUS_ERROR_NOT_ALLOWED);
             break;
     }
 }
+
 
 void handle_http_request(int clientfd, http_request_t* req, char* static_dir)
 {
