@@ -4,7 +4,9 @@ services:
       context: ./server/
       dockerfile: Dockerfile.server
     ports:
-      - 3000:80
+      - 9191:80
+    volumes:
+      - ./static:/static 
     networks:
       - app-network
 
