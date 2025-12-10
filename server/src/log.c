@@ -1,6 +1,9 @@
 #include <stdarg.h>
 #include "log.h"
 
+
+struct logger *logger = NULL;
+
 int log_create(struct logger_ops *lops, void *private_data, struct logger *log)
 {
     int ret = 0;
@@ -76,4 +79,16 @@ void log_error(struct logger *log, const char *fmt, ...)
     log->lops->log_level(log, ERROR, fmt, args);
     va_end(args);
     write_unlock(&log->lock);
+}
+
+
+void logger_set(struct logger *log)
+{
+    logger = log;
+}
+
+void logger_unset(void)
+{
+    logger->lops->private_free(logger->private_data);
+    logger = NULL;
 }

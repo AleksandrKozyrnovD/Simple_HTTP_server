@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "server.h"
+#include "prefork_epoll_ops.h"
 #include "http.h"
 
 #define CONN_REQ_QUEUE 1024
@@ -58,7 +58,7 @@ void conn_handler(void *arg) {
     char* req_buff = malloc(MAX_REQ_SEZE);
     if (req_buff == NULL)
     {
-        // LOG_ERROR("failed alloc req buf: %s", strerror(errno));
+        LOG_ERROR("failed alloc req buf: %s", strerror(errno));
         free(client_data);
         return;
     }
@@ -82,7 +82,7 @@ void conn_handler(void *arg) {
     }
     if (req.method == UNSUPPORTED_METHOD)
     {
-        // LOG_ERROR("unsupported http method");
+        LOG_ERROR("unsupported http method\n", NULL);
         send_status(clientfd, STATUS_ERROR_NOT_ALLOWED);
         close(clientfd);
         free(req_buff);
@@ -103,13 +103,13 @@ int epoll_socket_create(char *host, int port)
     struct sockaddr_in server_addr;
     if ((sfd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
     {
-        // LOG_ERROR("socket error");
+        LOG_ERROR("socket error\n", NULL);
         return -1;
     }
     int opt = IP_PMTUDISC_WANT;
     if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
     {
-        // LOG_ERROR("setsockopt error");
+        LOG_ERROR("setsockopt error\n", NULL);
         return -1;
     }
     server_addr.sin_family = AF_INET;
@@ -117,6 +117,7 @@ int epoll_socket_create(char *host, int port)
     server_addr.sin_port = htons(port);
     if (bind(sfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
+        LOG_ERROR("IP: %s, port: %d\n", host, port);
         perror("bind error");
         return -1;
     }
@@ -131,6 +132,7 @@ int epoll_socket_create(char *host, int port)
 
 int epoll_loop(struct server *server)
 {
+    struct prefork_epoll_data *data = server->private_data;
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
     int client_socket, epoll_fd, nfds;
@@ -185,11 +187,8 @@ int epoll_loop(struct server *server)
                 conn_data_t *arg = malloc(sizeof(conn_data_t));
                 arg->clientfd = events[i].data.fd;
                 // arg->static_dir = server->static_dir;
-                // if (threadpool_add(server->tpool, &conn_handler, (void *)arg, 0) < 0)
-                // {
-                //     perror("thpool_add_work err\n");
-                //     return EXIT_FAILURE;
-                // }
+                arg->static_dir = data->static_dir;
+                LOG_INFO("Client connected %d\n", arg->clientfd);
                 conn_handler(arg);
             }
         }

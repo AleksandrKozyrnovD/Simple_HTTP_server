@@ -16,7 +16,8 @@ int main(void)
 {
     int ret = 0;
     struct logger slog;
-    struct console_log_data console_log_data = { .out = stdout };
+    FILE *file = fopen("log.log", "w");
+    struct console_log_data console_log_data = { .out = file };
     struct prefork_epoll_data prefork_epoll_data = { .child_num = 4, .static_dir = "static" };
 
     ret = log_create(&console_log_ops, &console_log_data, &slog);
@@ -26,7 +27,9 @@ int main(void)
         return -1;
     }
 
-    ret = server_create(&slog, "127.0.0.1", 12345, &prefork_epoll_ops, &prefork_epoll_data, &server);
+    logger_set(&slog);
+
+    ret = server_create("127.0.0.1", 12345, &prefork_epoll_ops, &prefork_epoll_data, &server);
     if (ret)
     {
         perror("server_create");
@@ -38,7 +41,9 @@ int main(void)
 
     server.sops->start(&server);
 
-    log_free(&slog);
+    // log_free(&slog);
+
+    logger_unset();
 
     return 0;
 }

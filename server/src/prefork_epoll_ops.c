@@ -5,6 +5,7 @@
 int prefork_epoll_ops_start(struct server *server)
 {
     struct prefork_epoll_data *data = server->private_data;
+    LOG_INFO("Launching server with IP: %s, port: %d\n", server->sip, server->sport);
     server->sfd = epoll_socket_create(server->sip, server->sport);
     if (server->sfd == -1)
     {

@@ -37,4 +37,15 @@ void log_info(struct logger *log, const char *fmt, ...);
 void log_warn(struct logger *log, const char *fmt, ...);
 void log_error(struct logger *log, const char *fmt, ...);
 
+
+extern struct logger *logger;
+
+void logger_set(struct logger *log);
+void logger_unset(void);
+
+#define LOG_DEBUG(fmt, ...) log_debug(logger, fmt, ##__VA_ARGS__)
+#define LOG_INFO(fmt, ...) log_info(logger, fmt, ##__VA_ARGS__)
+#define LOG_WARN(fmt, ...) log_warn(logger, fmt, ##__VA_ARGS__)
+#define LOG_ERROR(fmt, ...) log_error(logger, fmt, ##__VA_ARGS__)
+
 #endif
